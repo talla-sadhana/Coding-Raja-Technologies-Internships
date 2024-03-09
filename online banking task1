@@ -1,0 +1,141 @@
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+// User class representing a bank user
+class User {
+    private String username;
+    private String password;
+    // Other user details like name, email, etc.
+
+    public User(String username, String password) {
+        this.username = username;
+        this.password = password;
+    }
+
+    // Getters and setters for other user details
+}
+
+// Account class representing a bank account
+class Account {
+    private int accountId;
+    private String accountType;
+    private double balance;
+    // Other account details like owner, account number, etc.
+
+    public Account(int accountId, String accountType) {
+        this.accountId = accountId;
+        this.accountType = accountType;
+        this.balance = 0.0; // Initial balance is 0
+    }
+
+    // Methods to deposit, withdraw, and check balance
+    public void deposit(double amount) {
+        balance += amount;
+    }
+
+    public void withdraw(double amount) {
+        balance -= amount;
+    }
+
+    public double getBalance() {
+        return balance;
+    }
+
+    // Other methods for managing the account
+}
+
+// Transaction class representing a transaction
+class Transaction {
+    private int transactionId;
+    private int accountId;
+    private String transactionType;
+    private double amount;
+    // Other transaction details like date, description, etc.
+
+    public Transaction(int transactionId, int accountId, String transactionType, double amount) {
+        this.transactionId = transactionId;
+        this.accountId = accountId;
+        this.transactionType = transactionType;
+        this.amount = amount;
+    }
+
+    // Getters for other transaction details
+}
+
+// Bank class representing the bank and its operations
+class Bank {
+    private Map<Integer, Account> accounts; // Map of account ID to Account object
+    private List<Transaction> transactions; // List of transactions
+
+    public Bank() {
+        accounts = new HashMap<>();
+        transactions = new ArrayList<>();
+    }
+
+    // Method to create a new account
+    public void createAccount(int accountId, String accountType) {
+        Account account = new Account(accountId, accountType);
+        accounts.put(accountId, account);
+    }
+
+    // Method to perform funds transfer
+    public void transferFunds(int fromAccountId, int toAccountId, double amount) {
+        Account fromAccount = accounts.get(fromAccountId);
+        Account toAccount = accounts.get(toAccountId);
+        
+        if (fromAccount != null && toAccount != null) {
+            fromAccount.withdraw(amount);
+            toAccount.deposit(amount);
+            transactions.add(new Transaction(transactions.size() + 1, fromAccountId, "Transfer", amount));
+            transactions.add(new Transaction(transactions.size() + 1, toAccountId, "Transfer", amount));
+        } else {
+            System.out.println("Invalid account IDs");
+        }
+    }
+
+    // Method to get transaction history for an account
+    public List<Transaction> getTransactionHistory(int accountId) {
+        List<Transaction> history = new ArrayList<>();
+        for (Transaction transaction : transactions) {
+            if (transaction.getAccountId() == accountId) {
+                history.add(transaction);
+            }
+        }
+        return history;
+    }
+
+    // Method to check balance
+    public double checkBalance(int accountId) {
+        Account account = accounts.get(accountId);
+        if (account != null) {
+            return account.getBalance();
+        } else {
+            return -1; // Invalid account ID
+        }
+    }
+
+    // Other methods for account management, loan management, etc.
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Bank bank = new Bank();
+
+        // Example usage
+        bank.createAccount(1, "Savings");
+        bank.createAccount(2, "Checking");
+
+        bank.transferFunds(1, 2, 100.0);
+
+        System.out.println("Transaction History for Account 1:");
+        List<Transaction> history = bank.getTransactionHistory(1);
+        for (Transaction transaction : history) {
+            System.out.println(transaction.getTransactionId() + ": " + transaction.getTransactionType() +
+                    " - $" + transaction.getAmount());
+        }
+
+        System.out.println("Balance of Account 1: $" + bank.checkBalance(1));
+    }
+}
