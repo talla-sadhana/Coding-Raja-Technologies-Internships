@@ -1,0 +1,143 @@
+import java.sql.*;
+
+class LibraryManagementSystem {
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/library";
+    private static final String DB_USER = "username";
+    private static final String DB_PASSWORD = "password";
+
+    public static void main(String[] args) {
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
+            // Create tables if not exists
+            createTables(conn);
+
+            // Example usage
+            addBook(conn, "The Great Gatsby", "F. Scott Fitzgerald", "1234567890");
+            addPatron(conn, "John Doe", "123 Main St", "john@example.com");
+            borrowBook(conn, "The Great Gatsby", "John Doe", "2024-03-09", "2024-04-09");
+
+            // Search for books by title
+            searchBooks(conn, "Gatsby");
+
+            // Generate report of borrowed books by a patron
+            generateBorrowedBooksReport(conn, "John Doe");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void createTables(Connection conn) throws SQLException {
+        String createBooksTable = "CREATE TABLE IF NOT EXISTS books (" +
+                "id INT AUTO_INCREMENT PRIMARY KEY," +
+                "title VARCHAR(255) NOT NULL," +
+                "author VARCHAR(255) NOT NULL," +
+                "isbn VARCHAR(13) NOT NULL" +
+                ")";
+        String createPatronsTable = "CREATE TABLE IF NOT EXISTS patrons (" +
+                "id INT AUTO_INCREMENT PRIMARY KEY," +
+                "name VARCHAR(255) NOT NULL," +
+                "address VARCHAR(255) NOT NULL," +
+                "email VARCHAR(255) NOT NULL" +
+                ")";
+        String createBorrowingsTable = "CREATE TABLE IF NOT EXISTS borrowings (" +
+                "id INT AUTO_INCREMENT PRIMARY KEY," +
+                "book_id INT NOT NULL," +
+                "patron_id INT NOT NULL," +
+                "borrow_date DATE NOT NULL," +
+                "return_date DATE," +
+                "fine DECIMAL(10, 2)," +
+                "FOREIGN KEY (book_id) REFERENCES books(id)," +
+                "FOREIGN KEY (patron_id) REFERENCES patrons(id)" +
+                ")";
+        try (Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate(createBooksTable);
+            stmt.executeUpdate(createPatronsTable);
+            stmt.executeUpdate(createBorrowingsTable);
+        }
+    }
+
+    private static void addBook(Connection conn, String title, String author, String isbn) throws SQLException {
+        String insertBook = "INSERT INTO books (title, author, isbn) VALUES (?, ?, ?)";
+        try (PreparedStatement pstmt = conn.prepareStatement(insertBook)) {
+            pstmt.setString(1, title);
+            pstmt.setString(2, author);
+            pstmt.setString(3, isbn);
+            pstmt.executeUpdate();
+        }
+    }
+
+    private static void addPatron(Connection conn, String name, String address, String email) throws SQLException {
+        String insertPatron = "INSERT INTO patrons (name, address, email) VALUES (?, ?, ?)";
+        try (PreparedStatement pstmt = conn.prepareStatement(insertPatron)) {
+            pstmt.setString(1, name);
+            pstmt.setString(2, address);
+            pstmt.setString(3, email);
+            pstmt.executeUpdate();
+        }
+    }
+
+    private static void borrowBook(Connection conn, String bookTitle, String patronName, String borrowDate, String returnDate) throws SQLException {
+        // Get book ID
+        String selectBookId = "SELECT id FROM books WHERE title LIKE ?";
+        int bookId = -1;
+        try (PreparedStatement pstmt = conn.prepareStatement(selectBookId)) {
+            pstmt.setString(1, "%" + bookTitle + "%");
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                bookId = rs.getInt("id");
+            }
+        }
+
+        // Get patron ID
+        String selectPatronId = "SELECT id FROM patrons WHERE name LIKE ?";
+        int patronId = -1;
+        try (PreparedStatement pstmt = conn.prepareStatement(selectPatronId)) {
+            pstmt.setString(1, "%" + patronName + "%");
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                patronId = rs.getInt("id");
+            }
+        }
+
+        // Borrow book
+        if (bookId != -1 && patronId != -1) {
+            String insertBorrowing = "INSERT INTO borrowings (book_id, patron_id, borrow_date, return_date) VALUES (?, ?, ?, ?)";
+            try (PreparedStatement pstmt = conn.prepareStatement(insertBorrowing)) {
+                pstmt.setInt(1, bookId);
+                pstmt.setInt(2, patronId);
+                pstmt.setString(3, borrowDate);
+                pstmt.setString(4, returnDate);
+                pstmt.executeUpdate();
+            }
+        }
+    }
+
+    private static void searchBooks(Connection conn, String keyword) throws SQLException {
+        String searchQuery = "SELECT * FROM books WHERE title LIKE ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(searchQuery)) {
+            pstmt.setString(1, "%" + keyword + "%");
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                System.out.println("Title: " + rs.getString("title") +
+                        ", Author: " + rs.getString("author") +
+                        ", ISBN: " + rs.getString("isbn"));
+            }
+        }
+    }
+
+    private static void generateBorrowedBooksReport(Connection conn, String patronName) throws SQLException {
+        String reportQuery = "SELECT b.title, p.name, br.borrow_date, br.return_date FROM borrowings br " +
+                "INNER JOIN books b ON br.book_id = b.id " +
+                "INNER JOIN patrons p ON br.patron_id = p.id " +
+                "WHERE p.name LIKE ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(reportQuery)) {
+            pstmt.setString(1, "%" + patronName + "%");
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                System.out.println("Book Title: " + rs.getString("title") +
+                        ", Patron Name: " + rs.getString("name") +
+                        ", Borrow Date: " + rs.getString("borrow_date") +
+                        ", Return Date: " + rs.getString("return_date"));
+            }
+        }
+    }
+}
